@@ -1,6 +1,7 @@
 import type { Hono } from 'hono';
 
 import type { ScenarioEngine } from '../incidents/scenario-engine';
+import { renderIncidentReport } from '../reporting/render-report';
 
 const parseJsonBody = async <T>(request: Request): Promise<Partial<T>> => {
   try {
@@ -51,6 +52,16 @@ export const registerIncidentRoutes = (
     }
 
     return c.json({ report });
+  });
+
+  app.get('/incidents/:id/report/rendered', async (c) => {
+    const incident = await scenarioEngine.getIncident(c.req.param('id'));
+
+    if (!incident) {
+      return c.json({ error: 'Incident not found' }, 404);
+    }
+
+    return c.json({ renderedReport: renderIncidentReport(incident) });
   });
 
   app.post('/incidents/:id/actions/:actionName', async (c) => {

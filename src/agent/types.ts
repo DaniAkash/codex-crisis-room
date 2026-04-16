@@ -1,4 +1,6 @@
 import type { LanguageModelUsage } from 'ai';
+import type { AgentMilestone } from './milestones';
+import type { TranscriptEntry } from '../demo/transcript';
 
 export type AgentTraceEvent =
   | {
@@ -41,7 +43,14 @@ export type AgentRunRecord = {
   finishedAt: string | null;
   finishReason: string | null;
   trace: AgentTraceEvent[];
+  milestones: AgentMilestone[];
+  transcript: TranscriptEntry[];
   lastText: string;
+  summary: {
+    totalSteps: number;
+    totalMilestones: number;
+    finalIncidentStatus: string | null;
+  };
 };
 
 export type AgentExecutionContext = {

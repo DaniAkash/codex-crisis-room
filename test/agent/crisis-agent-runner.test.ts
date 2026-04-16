@@ -126,5 +126,27 @@ describe('CrisisAgentRunner', () => {
     ]);
     expect(run.trace.some((event) => event.kind === 'tool_result')).toBe(true);
     expect(run.trace.at(-1)?.kind).toBe('run_finish');
+    expect(run.milestones.map((milestone) => milestone.kind)).toEqual([
+      'incident_detected',
+      'triage_started',
+      'sentry_evidence_found',
+      'report_updated',
+      'github_evidence_found',
+      'report_updated',
+      'stakeholders_notified',
+      'fix_pr_opened',
+      'owner_assigned',
+      'fix_merged',
+      'monitoring_started',
+      'monitoring_clean',
+      'monitoring_clean',
+      'incident_stabilized',
+    ]);
+    expect(run.transcript.length).toBe(run.milestones.length);
+    expect(run.summary).toEqual({
+      totalSteps: 15,
+      totalMilestones: 14,
+      finalIncidentStatus: 'stabilized',
+    });
   });
 });

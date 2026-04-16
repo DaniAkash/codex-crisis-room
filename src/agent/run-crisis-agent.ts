@@ -2,8 +2,10 @@ import type { LanguageModel, StepResult } from 'ai';
 
 import type { ScenarioEngine } from '../incidents/scenario-engine';
 import { createCrisisAgent } from './crisis-agent';
+import { buildMilestonesFromTrace } from './milestone-builder';
 import { createTraceRecorder, InMemoryAgentRunStore, makeAgentExecutionContext } from './trace';
 import type { AgentRunRecord } from './types';
+import { buildTranscriptFromMilestones } from '../demo/transcript';
 
 const summarizeStep = (step: StepResult<any>) => {
   if (step.toolCalls.length > 0) {
@@ -78,9 +80,24 @@ export class CrisisAgentRunner {
       result.text || 'Agent run completed',
     );
 
+    const finalIncident = await this.scenarioEngine.getIncident(incidentId);
+    const trace = this.runStore.get(runId)?.trace ?? [];
+    const milestones = buildMilestonesFromTrace(trace);
+    const transcript = buildTranscriptFromMilestones(milestones);
+    const summary = {
+      totalSteps: result.steps.length,
+      totalMilestones: milestones.length,
+      finalIncidentStatus: finalIncident?.status ?? null,
+    };
+    this.runStore.setDerivedOutputs(runId, {
+      milestones,
+      transcript,
+      summary,
+    });
+
     return {
       runId,
-      incident: await this.scenarioEngine.getIncident(incidentId),
+      incident: finalIncident,
       result: {
         text: result.text,
         finishReason: result.finishReason,
@@ -91,7 +108,10 @@ export class CrisisAgentRunner {
           text: step.text,
         })),
       },
-      trace: this.runStore.get(runId)?.trace ?? [],
+      trace,
+      milestones,
+      transcript,
+      summary,
     };
   }
 

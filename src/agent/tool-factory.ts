@@ -57,9 +57,19 @@ export const createCommanderTools = (scenarioEngine: ScenarioEngine) => ({
       recordToolCall(context, 'detect_repeated_incident', {
         incidentId: context.incidentId,
       });
-      const output = await scenarioEngine.detectRepeatedIncident(
+      const detection = await scenarioEngine.detectRepeatedIncident(
         context.incidentId,
       );
+      const incident = await scenarioEngine.getIncident(context.incidentId);
+
+      if (!incident) {
+        throw new Error(`Incident ${context.incidentId} not found`);
+      }
+
+      const output = {
+        incident,
+        payload: detection,
+      };
       recordToolResult(context, 'detect_repeated_incident', output);
       return output;
     },

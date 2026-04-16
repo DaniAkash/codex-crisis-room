@@ -25,4 +25,24 @@ export const registerAgentRoutes = (
 
     return c.json({ run });
   });
+
+  app.get('/agent/runs/:runId/milestones', (c) => {
+    const run = commanderRunner.getRun(c.req.param('runId'));
+
+    if (!run) {
+      return c.json({ error: 'Agent run not found' }, 404);
+    }
+
+    return c.json({ milestones: run.milestones, summary: run.summary });
+  });
+
+  app.get('/agent/runs/:runId/transcript', (c) => {
+    const run = commanderRunner.getRun(c.req.param('runId'));
+
+    if (!run) {
+      return c.json({ error: 'Agent run not found' }, 404);
+    }
+
+    return c.json({ transcript: run.transcript, summary: run.summary });
+  });
 };
