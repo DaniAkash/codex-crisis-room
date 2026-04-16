@@ -24,7 +24,14 @@ export class InMemoryAgentRunStore {
       finishedAt: null,
       finishReason: null,
       trace: [],
+      milestones: [],
+      transcript: [],
       lastText: '',
+      summary: {
+        totalSteps: 0,
+        totalMilestones: 0,
+        finalIncidentStatus: null,
+      },
     };
 
     this.runs.set(runId, run);
@@ -54,6 +61,21 @@ export class InMemoryAgentRunStore {
       summary,
       timestamp: new Date().toISOString(),
     });
+  }
+
+  setDerivedOutputs(
+    runId: string,
+    derived: Pick<AgentRunRecord, 'milestones' | 'transcript' | 'summary'>,
+  ) {
+    const run = this.get(runId);
+
+    if (!run) {
+      return;
+    }
+
+    run.milestones = derived.milestones;
+    run.transcript = derived.transcript;
+    run.summary = derived.summary;
   }
 }
 
