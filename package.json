@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "bun --watch src/server.ts",
-    "start": "bun src/server.ts",
+    "start": "bun --env-file=.env src/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
