@@ -9,6 +9,8 @@ const summarizeEvent = (
   context: IncidentMachineContext,
 ) => {
   switch (event.type) {
+    case 'REPORT_UPDATED':
+      return `Incident report updated: ${event.note}`;
     case 'START_TRIAGE':
       return `Automated triage started for ${context.report.affectedArea}`;
     case 'SENTRY_EVIDENCE_FOUND':

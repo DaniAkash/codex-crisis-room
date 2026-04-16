@@ -1,4 +1,7 @@
-import type { IncidentSummary } from './types';
+import type {
+  IncidentSummary,
+  RepeatedIncidentDetection,
+} from './types';
 import { IncidentStore } from './store';
 
 export class ScenarioEngine {
@@ -6,6 +9,27 @@ export class ScenarioEngine {
 
   startBillingRenewalIncident() {
     return this.store.createIncidentFromScenario('billing-renewal');
+  }
+
+  async detectRepeatedIncident(
+    incidentId: string,
+  ): Promise<RepeatedIncidentDetection> {
+    const incident = await this.store.getIncident(incidentId);
+
+    if (!incident) {
+      throw new Error(`Incident ${incidentId} not found`);
+    }
+
+    const alertBurst = incident.timeline.find((entry) => entry.kind === 'ALERT_BURST');
+    const alerts = Array.isArray(alertBurst?.metadata.alerts)
+      ? alertBurst.metadata.alerts
+      : [];
+
+    return {
+      repeated: alerts.length >= 3,
+      alertCount: alerts.length,
+      summary: `Detected repeated billing failures across ${alerts.length} user events`,
+    };
   }
 
   async startTriage(incidentId: string) {
@@ -121,6 +145,38 @@ export class ScenarioEngine {
     });
 
     return { incident: nextIncident, payload: currentCheck };
+  }
+
+  async updateIncidentReport(incidentId: string, note: string) {
+    const incident = await this.store.send(incidentId, {
+      type: 'REPORT_UPDATED',
+      note,
+    });
+
+    return {
+      incident,
+      payload: {
+        note,
+        report: incident.report,
+      },
+    };
+  }
+
+  async getIncidentState(incidentId: string) {
+    const incident = await this.store.getIncident(incidentId);
+
+    if (!incident) {
+      throw new Error(`Incident ${incidentId} not found`);
+    }
+
+    return {
+      incident,
+      payload: {
+        status: incident.status,
+        report: incident.report,
+        timeline: incident.timeline,
+      },
+    };
   }
 
   getIncident(incidentId: string): Promise<IncidentSummary | null> {

@@ -1,6 +1,7 @@
 import { assign, setup } from 'xstate';
 
 import {
+  appendReportNote,
   setFixMerged,
   setFixPr,
   setGithubEvidence,
@@ -22,6 +23,8 @@ const getNextStatusForEvent = (
   event: IncidentMachineEvent,
 ): IncidentStatus => {
   switch (event.type) {
+    case 'REPORT_UPDATED':
+      return context.report.currentStatus;
     case 'START_TRIAGE':
       return 'triage_started';
     case 'SENTRY_EVIDENCE_FOUND':
@@ -53,6 +56,8 @@ const evolveReport = (
   const status = getNextStatusForEvent(context, event);
 
   switch (event.type) {
+    case 'REPORT_UPDATED':
+      return appendReportNote(context.report, event.note);
     case 'START_TRIAGE':
       return updateReportStatus(context.report, status);
     case 'SENTRY_EVIDENCE_FOUND':
@@ -125,11 +130,13 @@ export const incidentMachine = setup({
   states: {
     new: {
       on: {
+        REPORT_UPDATED: { actions: 'applyEvent' },
         START_TRIAGE: { target: 'triage_started', actions: 'applyEvent' },
       },
     },
     triage_started: {
       on: {
+        REPORT_UPDATED: { actions: 'applyEvent' },
         SENTRY_EVIDENCE_FOUND: {
           target: 'investigating',
           actions: 'applyEvent',
@@ -138,6 +145,7 @@ export const incidentMachine = setup({
     },
     investigating: {
       on: {
+        REPORT_UPDATED: { actions: 'applyEvent' },
         GITHUB_EVIDENCE_FOUND: { actions: 'applyEvent' },
         STAKEHOLDERS_NOTIFIED: {
           target: 'stakeholders_notified',
@@ -147,26 +155,31 @@ export const incidentMachine = setup({
     },
     stakeholders_notified: {
       on: {
+        REPORT_UPDATED: { actions: 'applyEvent' },
         FIX_PR_OPENED: { target: 'fix_pr_opened', actions: 'applyEvent' },
       },
     },
     fix_pr_opened: {
       on: {
+        REPORT_UPDATED: { actions: 'applyEvent' },
         OWNER_ASSIGNED: { target: 'owner_assigned', actions: 'applyEvent' },
       },
     },
     owner_assigned: {
       on: {
+        REPORT_UPDATED: { actions: 'applyEvent' },
         FIX_MERGED: { target: 'fix_merged', actions: 'applyEvent' },
       },
     },
     fix_merged: {
       on: {
+        REPORT_UPDATED: { actions: 'applyEvent' },
         START_MONITORING: { target: 'monitoring', actions: 'applyEvent' },
       },
     },
     monitoring: {
       on: {
+        REPORT_UPDATED: { actions: 'applyEvent' },
         HEALTH_CHECK_CLEAN: [
           {
             guard: 'hasEnoughCleanHealthChecks',
@@ -183,6 +196,9 @@ export const incidentMachine = setup({
       },
     },
     stabilized: {
+      on: {
+        REPORT_UPDATED: { actions: 'applyEvent' },
+      },
       type: 'final',
     },
   },

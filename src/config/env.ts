@@ -9,6 +9,7 @@ const envSchema = z.object({
   SLACK_APP_TOKEN: z.string().optional(),
   SLACK_INCIDENTS_CHANNEL_ID: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  OPENAI_MODEL: z.string().default('gpt-5.4'),
   DATA_DIR: z.string().default('./data'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
