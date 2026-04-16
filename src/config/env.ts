@@ -8,6 +8,8 @@ const envSchema = z.object({
   SLACK_BOT_TOKEN: z.string().optional(),
   SLACK_APP_TOKEN: z.string().optional(),
   SLACK_INCIDENTS_CHANNEL_ID: z.string().optional(),
+  SLACK_APP_ID: z.string().optional(),
+  SLACK_WORKSPACE_NAME: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default('gpt-5.4'),
   DATA_DIR: z.string().default('./data'),
