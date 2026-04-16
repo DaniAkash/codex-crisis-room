@@ -12,6 +12,14 @@ const envSchema = z.object({
   SLACK_WORKSPACE_NAME: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default('gpt-5.4'),
+  DEMO_GITHUB_REPO: z.string().optional(),
+  DEMO_REVIEWER_SLACK_ID: z.string().optional(),
+  DEMO_OWNER_SLACK_ID: z.string().optional(),
+  DEMO_STAKEHOLDER_SLACK_IDS: z.string().optional(),
+  DEMO_REPORT_BASE_URL: z.string().optional(),
+  FAST_DEMO_MODE: z
+    .enum(['true', 'false'])
+    .optional(),
   DATA_DIR: z.string().default('./data'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
