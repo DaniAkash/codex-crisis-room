@@ -2,8 +2,10 @@ import type { SocketModeClient } from '@slack/socket-mode';
 import type { WebClient } from '@slack/web-api';
 
 import type { CrisisAgentRunner } from '../agent/run-crisis-agent';
+import { demoConfig } from '../demo/config';
+import { buildSlackStory, type SlackStoryBeat } from '../demo/slack-story';
 import type { IncidentStore } from '../incidents/store';
-import { renderSlackMessage } from './render';
+import { renderSlackBeat } from './render';
 import { SlackTriggerDetector } from './trigger-detector';
 import type { SlackMessageEvent, SlackStatus } from './types';
 
@@ -17,9 +19,17 @@ type SlackTransportDeps = {
   incidentStore: IncidentStore;
 };
 
+type PendingReview = {
+  channel: string;
+  threadTs: string;
+  afterConfirmation: SlackStoryBeat[];
+  allowedUserIds: Set<string>;
+};
+
 export class SlackTransport {
   private readonly triggerDetector: SlackTriggerDetector;
   private readonly activeThreads = new Set<string>();
+  private readonly pendingReviews = new Map<string, PendingReview>();
   private status: SlackStatus;
 
   constructor(private readonly deps: SlackTransportDeps) {
@@ -80,20 +90,99 @@ export class SlackTransport {
     });
   }
 
+  private async demoDelay(ms: number) {
+    if (demoConfig.fastMode) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private isHumanConfirmation(
+    event: SlackMessageEvent,
+    pendingReview: PendingReview,
+  ) {
+    if (event.bot_id || event.subtype || !event.user || !event.text) {
+      return false;
+    }
+
+    if (
+      pendingReview.allowedUserIds.size > 0 &&
+      !pendingReview.allowedUserIds.has(event.user)
+    ) {
+      return false;
+    }
+
+    return /\b(lgtm|looks good|ok to merge|okay to merge|approved|ship it|works|go ahead)\b/i.test(
+      event.text,
+    );
+  }
+
+  private async postBeats(
+    channel: string,
+    threadTs: string,
+    beats: SlackStoryBeat[],
+  ) {
+    for (const beat of beats) {
+      await this.postThreadMessage(channel, threadTs, renderSlackBeat(beat));
+      await this.demoDelay(beat.kind === 'codex_fix_invocation' ? 900 : 250);
+    }
+  }
+
+  private async resumeAfterReview(event: SlackMessageEvent, threadKey: string) {
+    const pendingReview = this.pendingReviews.get(threadKey);
+
+    if (!pendingReview || !this.isHumanConfirmation(event, pendingReview)) {
+      return false;
+    }
+
+    this.pendingReviews.delete(threadKey);
+    this.activeThreads.add(threadKey);
+
+    try {
+      if (event.user) {
+        await this.postThreadMessage(
+          pendingReview.channel,
+          pendingReview.threadTs,
+          `Review confirmed by <@${event.user}>. Proceeding with merge and rollout.`,
+        );
+      }
+
+      await this.postBeats(
+        pendingReview.channel,
+        pendingReview.threadTs,
+        pendingReview.afterConfirmation,
+      );
+    } finally {
+      this.activeThreads.delete(threadKey);
+    }
+
+    return true;
+  }
+
   async handleMessage(event: SlackMessageEvent) {
+    const threadKey = `${event.channel}:${event.thread_ts ?? event.ts}`;
+
+    if (await this.resumeAfterReview(event, threadKey)) {
+      return {
+        triggered: false as const,
+        reason: 'ignored' as const,
+      };
+    }
+
     const decision = this.triggerDetector.evaluate(event);
 
     if (!decision.triggered) {
       return decision;
     }
 
-    const threadKey = `${event.channel}:${decision.threadTs}`;
+    const decisionThreadKey = `${event.channel}:${decision.threadTs}`;
 
-    if (this.activeThreads.has(threadKey)) {
+    if (this.activeThreads.has(decisionThreadKey)) {
       return decision;
     }
 
-    this.activeThreads.add(threadKey);
+    this.activeThreads.add(decisionThreadKey);
 
     try {
       await this.postThreadMessage(
@@ -113,12 +202,26 @@ export class SlackTransport {
         });
       }
 
-      for (const entry of run.transcript) {
-        await this.postThreadMessage(
-          event.channel,
-          decision.threadTs,
-          renderSlackMessage(entry),
-        );
+      const story = buildSlackStory(run.milestones, demoConfig);
+
+      await this.postBeats(
+        event.channel,
+        decision.threadTs,
+        story.beforeConfirmation,
+      );
+
+      if (story.afterConfirmation.length > 0) {
+        this.pendingReviews.set(decisionThreadKey, {
+          channel: event.channel,
+          threadTs: decision.threadTs,
+          afterConfirmation: story.afterConfirmation,
+          allowedUserIds: new Set(
+            [
+              demoConfig.reviewerSlackId,
+              demoConfig.ownerSlackId,
+            ].filter((entry): entry is string => Boolean(entry)),
+          ),
+        });
       }
 
       return decision;
@@ -138,7 +241,7 @@ export class SlackTransport {
 
       return decision;
     } finally {
-      this.activeThreads.delete(threadKey);
+      this.activeThreads.delete(decisionThreadKey);
     }
   }
 }
