@@ -11,7 +11,7 @@ const envSchema = z.object({
   SLACK_APP_ID: z.string().optional(),
   SLACK_WORKSPACE_NAME: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
-  OPENAI_MODEL: z.string().default('gpt-5.4'),
+  OPENAI_MODEL: z.string().default('gpt-5'),
   DEMO_GITHUB_REPO: z.string().optional(),
   DEMO_REVIEWER_SLACK_ID: z.string().optional(),
   DEMO_OWNER_SLACK_ID: z.string().optional(),
