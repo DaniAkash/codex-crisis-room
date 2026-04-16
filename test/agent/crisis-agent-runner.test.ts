@@ -59,50 +59,36 @@ describe('CrisisAgentRunner', () => {
     const engine = new ScenarioEngine(store);
 
     const toolSequence = [
-      makeToolResult(
-        'detect_repeated_incident',
-        { incidentId: 'INC-001' },
-        'call-1',
-      ),
-      makeToolResult('start_triage', { incidentId: 'INC-001' }, 'call-2'),
-      makeToolResult('read_sentry_signals', { incidentId: 'INC-001' }, 'call-3'),
+      makeToolResult('detect_repeated_incident', {}, 'call-1'),
+      makeToolResult('start_triage', {}, 'call-2'),
+      makeToolResult('read_sentry_signals', {}, 'call-3'),
       makeToolResult(
         'update_incident_report',
         {
-          incidentId: 'INC-001',
           note: 'Sentry shows repeated renewal failures after deploy-2026-04-16-0912.',
         },
         'call-4',
       ),
-      makeToolResult(
-        'inspect_recent_github_changes',
-        { incidentId: 'INC-001' },
-        'call-5',
-      ),
+      makeToolResult('inspect_recent_github_changes', {}, 'call-5'),
       makeToolResult(
         'update_incident_report',
         {
-          incidentId: 'INC-001',
           note: 'Recent billing retry changes in PR #184 likely introduced the regression path.',
         },
         'call-6',
       ),
-      makeToolResult(
-        'notify_stakeholders',
-        { incidentId: 'INC-001' },
-        'call-7',
-      ),
-      makeToolResult('open_fix_pr', { incidentId: 'INC-001' }, 'call-8'),
+      makeToolResult('notify_stakeholders', {}, 'call-7'),
+      makeToolResult('open_fix_pr', {}, 'call-8'),
       makeToolResult(
         'assign_incident_owner',
-        { incidentId: 'INC-001', owner: '@user1' },
+        { owner: '@user1' },
         'call-9',
       ),
-      makeToolResult('merge_fix', { incidentId: 'INC-001' }, 'call-10'),
-      makeToolResult('start_monitoring', { incidentId: 'INC-001' }, 'call-11'),
-      makeToolResult('check_prod_health', { incidentId: 'INC-001' }, 'call-12'),
-      makeToolResult('check_prod_health', { incidentId: 'INC-001' }, 'call-13'),
-      makeToolResult('check_prod_health', { incidentId: 'INC-001' }, 'call-14'),
+      makeToolResult('merge_fix', {}, 'call-10'),
+      makeToolResult('start_monitoring', {}, 'call-11'),
+      makeToolResult('check_prod_health', {}, 'call-12'),
+      makeToolResult('check_prod_health', {}, 'call-13'),
+      makeToolResult('check_prod_health', {}, 'call-14'),
       makeToolResult(
         'done',
         { reason: 'Monitoring window is clean and the incident is stabilized.' },

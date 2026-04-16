@@ -54,7 +54,6 @@ export class CrisisAgentRunner {
     const result = await agent.generate({
       prompt,
       options: {
-        incidentId,
         executionContext,
       },
       onStepFinish: async (

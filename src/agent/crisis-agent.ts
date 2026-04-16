@@ -30,6 +30,7 @@ Rules:
 - Prefer tools over speculation.
 - Avoid redundant tool calls.
 - Keep updates concise and operational.
+- The active incident ID is provided by runtime context. Never guess or invent incident IDs.
 - Gather enough detail that a downstream communication layer can say:
   - what failed
   - what Sentry found
@@ -42,20 +43,19 @@ Rules:
 `;
 
 const toolsForStatus = {
-  new: ['detect_repeated_incident', 'start_triage', 'get_incident_state'],
-  triage_started: ['read_sentry_signals', 'update_incident_report', 'get_incident_state'],
+  new: ['detect_repeated_incident', 'start_triage'],
+  triage_started: ['read_sentry_signals', 'update_incident_report'],
   investigating: [
     'inspect_recent_github_changes',
     'update_incident_report',
     'notify_stakeholders',
-    'get_incident_state',
   ],
-  stakeholders_notified: ['open_fix_pr', 'update_incident_report', 'get_incident_state'],
-  fix_pr_opened: ['assign_incident_owner', 'update_incident_report', 'get_incident_state'],
-  owner_assigned: ['merge_fix', 'get_incident_state'],
-  fix_merged: ['start_monitoring', 'get_incident_state'],
-  monitoring: ['check_prod_health', 'get_incident_state'],
-  stabilized: ['done', 'get_incident_state'],
+  stakeholders_notified: ['open_fix_pr', 'update_incident_report'],
+  fix_pr_opened: ['assign_incident_owner', 'update_incident_report'],
+  owner_assigned: ['merge_fix'],
+  fix_merged: ['start_monitoring'],
+  monitoring: ['check_prod_health'],
+  stabilized: ['done'],
 } as const;
 
 const executionContextSchema = z.custom<AgentExecutionContext>(
@@ -69,7 +69,6 @@ const executionContextSchema = z.custom<AgentExecutionContext>(
 );
 
 const commanderCallOptionsSchema = z.object({
-  incidentId: z.string().min(1),
   executionContext: executionContextSchema,
 });
 
@@ -98,6 +97,12 @@ export const createCrisisAgent = (
     callOptionsSchema: commanderCallOptionsSchema,
     instructions: commanderInstructions,
     toolChoice: 'required',
+    providerOptions: {
+      openai: {
+        parallelToolCalls: false,
+        maxToolCalls: 1,
+      },
+    },
     tools,
     stopWhen: [stepCountIs(20), hasToolCall('done')],
     prepareCall: ({ options: callOptions, ...settings }) => ({

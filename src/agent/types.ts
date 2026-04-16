@@ -52,7 +52,6 @@ export type AgentExecutionContext = {
 };
 
 export type CommanderCallOptions = {
-  incidentId: string;
   executionContext: AgentExecutionContext;
 };
 
