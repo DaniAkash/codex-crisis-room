@@ -99,6 +99,7 @@ export type IncidentMachineContext = {
 };
 
 export type IncidentMachineEvent =
+  | { type: 'REPORT_UPDATED'; note: string }
   | { type: 'START_TRIAGE' }
   | {
       type: 'SENTRY_EVIDENCE_FOUND';
@@ -132,6 +133,12 @@ export type IncidentRecord = {
 };
 
 export type IncidentSummary = Incident;
+
+export type RepeatedIncidentDetection = {
+  repeated: boolean;
+  alertCount: number;
+  summary: string;
+};
 
 export {
   incidentReportSchema,

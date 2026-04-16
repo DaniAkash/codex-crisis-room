@@ -46,6 +46,14 @@ export const updateReportStatus = (
   currentStatus: status,
 });
 
+export const appendReportNote = (
+  report: IncidentReport,
+  note: string,
+): IncidentReport => ({
+  ...report,
+  resolutionNotes: Array.from(new Set([...report.resolutionNotes, note])),
+});
+
 export const setSentryEvidence = (
   report: IncidentReport,
   signature: string,
