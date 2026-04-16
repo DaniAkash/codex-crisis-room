@@ -135,6 +135,7 @@ export type IncidentRecord = {
 export type IncidentSummary = Incident;
 
 export type RepeatedIncidentDetection = {
+  incidentId: string;
   repeated: boolean;
   alertCount: number;
   summary: string;

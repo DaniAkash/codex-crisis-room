@@ -4,25 +4,20 @@ import type { AgentTraceEvent } from './types';
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
-const getIncidentPayload = (output: unknown) => {
-  if (!isRecord(output)) return null;
-  const incident = isRecord(output.incident) ? output.incident : null;
-  const payload = isRecord(output.payload) ? output.payload : null;
-
-  if (!incident || typeof incident.incidentId !== 'string') {
+const getToolOutput = (output: unknown) => {
+  if (!isRecord(output) || typeof output.incidentId !== 'string') {
     return null;
   }
 
   return {
-    incidentId: incident.incidentId,
-    incident,
-    payload,
+    incidentId: output.incidentId,
+    output,
   };
 };
 
-const toStakeholderMentions = (payload: unknown) =>
-  Array.isArray(payload)
-    ? payload.filter((value): value is string => typeof value === 'string')
+const toStakeholderMentions = (value: unknown) =>
+  Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string')
     : [];
 
 export const buildMilestonesFromTrace = (
@@ -35,7 +30,7 @@ export const buildMilestonesFromTrace = (
       continue;
     }
 
-    const result = getIncidentPayload(event.output);
+    const result = getToolOutput(event.output);
 
     if (!result) {
       continue;
@@ -51,8 +46,8 @@ export const buildMilestonesFromTrace = (
     switch (event.toolName) {
       case 'detect_repeated_incident': {
         const summary =
-          typeof result.payload?.summary === 'string'
-            ? result.payload.summary
+          typeof result.output.summary === 'string'
+            ? result.output.summary
             : 'Detected repeated incident pattern';
 
         milestones.push({
@@ -62,12 +57,12 @@ export const buildMilestonesFromTrace = (
           detail: null,
           payload: {
             alertCount:
-              typeof result.payload?.alertCount === 'number'
-                ? result.payload.alertCount
+              typeof result.output.alertCount === 'number'
+                ? result.output.alertCount
                 : 0,
             repeated:
-              typeof result.payload?.repeated === 'boolean'
-                ? result.payload.repeated
+              typeof result.output.repeated === 'boolean'
+                ? result.output.repeated
                 : false,
           },
         });
@@ -84,12 +79,12 @@ export const buildMilestonesFromTrace = (
         break;
       case 'read_sentry_signals': {
         const signature =
-          typeof result.payload?.signature === 'string'
-            ? result.payload.signature
+          typeof result.output.signature === 'string'
+            ? result.output.signature
             : null;
         const eventCount =
-          typeof result.payload?.eventCount === 'number'
-            ? result.payload.eventCount
+          typeof result.output.eventCount === 'number'
+            ? result.output.eventCount
             : null;
 
         milestones.push({
@@ -99,18 +94,18 @@ export const buildMilestonesFromTrace = (
             ? `Sentry correlation found ${eventCount ?? 0} events for ${signature}`
             : 'Sentry evidence collected',
           detail:
-            typeof result.payload?.suspectedCause === 'string'
-              ? result.payload.suspectedCause
+            typeof result.output.suspectedCause === 'string'
+              ? result.output.suspectedCause
               : null,
           payload: {
             signature,
             firstSeenAt:
-              typeof result.payload?.firstSeenAt === 'string'
-                ? result.payload.firstSeenAt
+              typeof result.output.firstSeenAt === 'string'
+                ? result.output.firstSeenAt
                 : null,
             deployId:
-              typeof result.payload?.deployId === 'string'
-                ? result.payload.deployId
+              typeof result.output.deployId === 'string'
+                ? result.output.deployId
                 : null,
             eventCount,
           },
@@ -118,13 +113,13 @@ export const buildMilestonesFromTrace = (
         break;
       }
       case 'inspect_recent_github_changes': {
-        const relevantFiles = Array.isArray(result.payload?.relevantFiles)
-          ? result.payload.relevantFiles.filter(
+        const relevantFiles = Array.isArray(result.output.relevantFiles)
+          ? result.output.relevantFiles.filter(
               (value): value is string => typeof value === 'string',
             )
           : [];
-        const suspectPrs = Array.isArray(result.payload?.suspectPrs)
-          ? result.payload.suspectPrs.filter(
+        const suspectPrs = Array.isArray(result.output.suspectPrs)
+          ? result.output.suspectPrs.filter(
               (value): value is string => typeof value === 'string',
             )
           : [];
@@ -146,7 +141,7 @@ export const buildMilestonesFromTrace = (
       }
       case 'update_incident_report': {
         const note =
-          typeof result.payload?.note === 'string' ? result.payload.note : null;
+          typeof result.output.note === 'string' ? result.output.note : null;
 
         milestones.push({
           ...base,
@@ -160,7 +155,7 @@ export const buildMilestonesFromTrace = (
         break;
       }
       case 'notify_stakeholders': {
-        const stakeholders = toStakeholderMentions(result.payload);
+        const stakeholders = toStakeholderMentions(result.output.stakeholders);
 
         milestones.push({
           ...base,
@@ -176,9 +171,9 @@ export const buildMilestonesFromTrace = (
       }
       case 'open_fix_pr': {
         const prNumber =
-          typeof result.payload?.fixPr === 'string' ? result.payload.fixPr : null;
+          typeof result.output.prNumber === 'string' ? result.output.prNumber : null;
         const title =
-          typeof result.payload?.title === 'string' ? result.payload.title : null;
+          typeof result.output.title === 'string' ? result.output.title : null;
 
         milestones.push({
           ...base,
@@ -190,17 +185,13 @@ export const buildMilestonesFromTrace = (
           payload: {
             prNumber,
             title,
-            suspectPr:
-              typeof result.payload?.suspectPr === 'string'
-                ? result.payload.suspectPr
-                : null,
           },
         });
         break;
       }
       case 'assign_incident_owner': {
         const owner =
-          typeof result.payload?.owner === 'string' ? result.payload.owner : null;
+          typeof result.output.owner === 'string' ? result.output.owner : null;
 
         milestones.push({
           ...base,
@@ -216,16 +207,18 @@ export const buildMilestonesFromTrace = (
           ...base,
           kind: 'fix_merged',
           summary:
-            typeof result.payload?.fixPr === 'string'
-              ? `${result.payload.fixPr} merged and rolling out`
+            typeof result.output.prNumber === 'string'
+              ? `${result.output.prNumber} merged and rolling out`
               : 'Fix merged and rolling out',
           detail:
-            typeof result.payload?.resolutionSummary === 'string'
-              ? result.payload.resolutionSummary
+            typeof result.output.resolutionSummary === 'string'
+              ? result.output.resolutionSummary
               : null,
           payload: {
             prNumber:
-              typeof result.payload?.fixPr === 'string' ? result.payload.fixPr : null,
+              typeof result.output.prNumber === 'string'
+                ? result.output.prNumber
+                : null,
           },
         });
         break;
@@ -240,10 +233,10 @@ export const buildMilestonesFromTrace = (
         break;
       case 'check_prod_health': {
         const clean =
-          typeof result.payload?.clean === 'boolean' ? result.payload.clean : false;
+          typeof result.output.clean === 'boolean' ? result.output.clean : false;
         const summary =
-          typeof result.payload?.summary === 'string'
-            ? result.payload.summary
+          typeof result.output.summary === 'string'
+            ? result.output.summary
             : clean
               ? 'Monitoring is clean'
               : 'Monitoring detected recurring failures';
@@ -251,19 +244,19 @@ export const buildMilestonesFromTrace = (
         milestones.push({
           ...base,
           kind:
-            result.incident.status === 'stabilized'
+            result.output.status === 'stabilized'
               ? 'incident_stabilized'
               : 'monitoring_clean',
           summary:
-            result.incident.status === 'stabilized'
+            result.output.status === 'stabilized'
               ? 'Incident stabilized after clean monitoring window'
               : summary,
           detail: summary,
           payload: {
             clean,
             errorCount:
-              typeof result.payload?.errorCount === 'number'
-                ? result.payload.errorCount
+              typeof result.output.errorCount === 'number'
+                ? result.output.errorCount
                 : null,
           },
         });

@@ -36,13 +36,17 @@ export class SlackTransport {
 
   async start() {
     this.deps.socketClient.on('slack_event', async ({ ack, body }: any) => {
-      await ack();
+      try {
+        await ack();
 
-      if (body?.event?.type !== 'message') {
-        return;
+        if (body?.event?.type !== 'message') {
+          return;
+        }
+
+        await this.handleMessage(body.event as SlackMessageEvent);
+      } catch (error) {
+        this.recordError(error);
       }
-
-      await this.handleMessage(body.event as SlackMessageEvent);
     });
 
     await this.deps.socketClient.start();
@@ -55,6 +59,25 @@ export class SlackTransport {
 
   getStatus(): SlackStatus {
     return this.status;
+  }
+
+  private recordError(error: unknown) {
+    this.status = {
+      ...this.status,
+      lastError: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  private async postThreadMessage(
+    channel: string,
+    threadTs: string,
+    text: string,
+  ) {
+    return this.deps.webClient.chat.postMessage({
+      channel,
+      thread_ts: threadTs,
+      text,
+    });
   }
 
   async handleMessage(event: SlackMessageEvent) {
@@ -73,14 +96,13 @@ export class SlackTransport {
     this.activeThreads.add(threadKey);
 
     try {
-      await this.deps.webClient.chat.postMessage({
-        channel: event.channel,
-        thread_ts: decision.threadTs,
-        text:
-          decision.reason === 'manual-kickoff'
-            ? 'Manual kickoff received. Initiating automated RCA now.'
-            : 'Detected repeated billing failures. Initiating automated RCA now.',
-      });
+      await this.postThreadMessage(
+        event.channel,
+        decision.threadTs,
+        decision.reason === 'manual-kickoff'
+          ? 'Manual kickoff received. Initiating automated RCA now.'
+          : 'Detected repeated billing failures. Initiating automated RCA now.',
+      );
 
       const run = await this.deps.commanderRunner.runForBillingScenario();
 
@@ -92,20 +114,29 @@ export class SlackTransport {
       }
 
       for (const entry of run.transcript) {
-        await this.deps.webClient.chat.postMessage({
-          channel: event.channel,
-          thread_ts: decision.threadTs,
-          text: renderSlackMessage(entry),
-        });
+        await this.postThreadMessage(
+          event.channel,
+          decision.threadTs,
+          renderSlackMessage(entry),
+        );
       }
 
       return decision;
     } catch (error) {
-      this.status = {
-        ...this.status,
-        lastError: error instanceof Error ? error.message : String(error),
-      };
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.recordError(error);
+
+      try {
+        await this.postThreadMessage(
+          event.channel,
+          decision.threadTs,
+          `Automated RCA paused due to a provider error.\n${errorMessage}`,
+        );
+      } catch (fallbackError) {
+        this.recordError(fallbackError);
+      }
+
+      return decision;
     } finally {
       this.activeThreads.delete(threadKey);
     }

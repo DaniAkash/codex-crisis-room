@@ -115,4 +115,126 @@ describe('SlackTransport', () => {
       threadTs: '3',
     });
   });
+
+  test('records provider errors in-thread without crashing the transport', async () => {
+    const store = new IncidentStore(filePath);
+
+    const postedMessages: Array<{
+      channel: string;
+      thread_ts: string;
+      text: string;
+    }> = [];
+
+    const transport = new SlackTransport({
+      incidentsChannelId: 'CINCIDENTS',
+      workspaceName: 'Luminaris Holdings',
+      appId: 'A0ATNQKJPHP',
+      webClient: {
+        chat: {
+          postMessage: async (payload: {
+            channel: string;
+            thread_ts: string;
+            text: string;
+          }) => {
+            postedMessages.push(payload);
+            return {} as never;
+          },
+        },
+      } as never,
+      socketClient: {
+        on() {},
+        start: async () => {},
+      } as never,
+      commanderRunner: {
+        runForBillingScenario: async () => {
+          throw new Error('OpenAI server_error');
+        },
+      } as never,
+      incidentStore: store,
+    });
+
+    await transport.handleMessage({
+      channel: 'CINCIDENTS',
+      ts: '1',
+      text: 'Billing monitor: subscription renewal failed for user usr_1042',
+      bot_id: 'BMONITOR',
+    });
+    await transport.handleMessage({
+      channel: 'CINCIDENTS',
+      ts: '2',
+      text: 'StripeError: No such payment_method',
+      bot_id: 'BMONITOR',
+    });
+    await transport.handleMessage({
+      channel: 'CINCIDENTS',
+      ts: '3',
+      text: 'ALERT: subscription renewal failures exceeded threshold for 15m in prod.',
+      bot_id: 'BMONITOR',
+    });
+
+    expect(postedMessages).toHaveLength(2);
+    expect(postedMessages[0]?.text).toBe(
+      'Detected repeated billing failures. Initiating automated RCA now.',
+    );
+    expect(postedMessages[1]?.text).toBe(
+      'Automated RCA paused due to a provider error.\nOpenAI server_error',
+    );
+    expect(transport.getStatus().lastError).toBe('OpenAI server_error');
+  });
+
+  test('swallows fallback Slack posting errors after a commander failure', async () => {
+    const store = new IncidentStore(filePath);
+    let postAttempts = 0;
+
+    const transport = new SlackTransport({
+      incidentsChannelId: 'CINCIDENTS',
+      workspaceName: 'Luminaris Holdings',
+      appId: 'A0ATNQKJPHP',
+      webClient: {
+        chat: {
+          postMessage: async () => {
+            postAttempts += 1;
+
+            if (postAttempts === 2) {
+              throw new Error('Slack post failed');
+            }
+
+            return {} as never;
+          },
+        },
+      } as never,
+      socketClient: {
+        on() {},
+        start: async () => {},
+      } as never,
+      commanderRunner: {
+        runForBillingScenario: async () => {
+          throw new Error('OpenAI server_error');
+        },
+      } as never,
+      incidentStore: store,
+    });
+
+    await transport.handleMessage({
+      channel: 'CINCIDENTS',
+      ts: '1',
+      text: 'Billing monitor: subscription renewal failed for user usr_1042',
+      bot_id: 'BMONITOR',
+    });
+    await transport.handleMessage({
+      channel: 'CINCIDENTS',
+      ts: '2',
+      text: 'StripeError: No such payment_method',
+      bot_id: 'BMONITOR',
+    });
+    await transport.handleMessage({
+      channel: 'CINCIDENTS',
+      ts: '3',
+      text: 'ALERT: subscription renewal failures exceeded threshold for 15m in prod.',
+      bot_id: 'BMONITOR',
+    });
+
+    expect(postAttempts).toBe(2);
+    expect(transport.getStatus().lastError).toBe('Slack post failed');
+  });
 });

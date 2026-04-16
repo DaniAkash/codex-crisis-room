@@ -31,8 +31,9 @@ describe('ScenarioEngine', () => {
     await engine.checkHealth(incident.incidentId);
     await engine.checkHealth(incident.incidentId);
     const finalCheck = await engine.checkHealth(incident.incidentId);
+    const finalIncident = await engine.getIncident(incident.incidentId);
 
-    expect(finalCheck.incident.status).toBe('stabilized');
-    expect(finalCheck.incident.report.currentStatus).toBe('stabilized');
+    expect(finalCheck.status).toBe('stabilized');
+    expect(finalIncident?.report.currentStatus).toBe('stabilized');
   });
 });

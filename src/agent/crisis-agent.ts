@@ -30,6 +30,7 @@ Rules:
 - Prefer tools over speculation.
 - Avoid redundant tool calls.
 - Keep updates concise and operational.
+- Once a phase-changing tool succeeds, move to the next required action instead of repeating report updates.
 - The active incident ID is provided by runtime context. Never guess or invent incident IDs.
 - Gather enough detail that a downstream communication layer can say:
   - what failed
@@ -50,13 +51,32 @@ const toolsForStatus = {
     'update_incident_report',
     'notify_stakeholders',
   ],
-  stakeholders_notified: ['open_fix_pr', 'update_incident_report'],
-  fix_pr_opened: ['assign_incident_owner', 'update_incident_report'],
+  stakeholders_notified: ['open_fix_pr'],
+  fix_pr_opened: ['assign_incident_owner'],
   owner_assigned: ['merge_fix'],
   fix_merged: ['start_monitoring'],
   monitoring: ['check_prod_health'],
   stabilized: ['done'],
 } as const;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const incidentIsStabilized = ({ steps }: { steps: Array<any> }) => {
+  const lastStep = steps.at(-1);
+
+  if (!lastStep) {
+    return false;
+  }
+
+  return lastStep.toolResults.some((toolResult: any) => {
+    if (toolResult.toolName !== 'check_prod_health' || !isRecord(toolResult.output)) {
+      return false;
+    }
+
+    return toolResult.output.status === 'stabilized';
+  });
+};
 
 const executionContextSchema = z.custom<AgentExecutionContext>(
   (value) =>
@@ -104,7 +124,7 @@ export const createCrisisAgent = (
       },
     },
     tools,
-    stopWhen: [stepCountIs(20), hasToolCall('done')],
+    stopWhen: [stepCountIs(20), hasToolCall('done'), incidentIsStabilized],
     prepareCall: ({ options: callOptions, ...settings }) => ({
       ...settings,
       experimental_context: callOptions.executionContext,

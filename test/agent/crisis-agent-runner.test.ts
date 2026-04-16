@@ -89,11 +89,6 @@ describe('CrisisAgentRunner', () => {
       makeToolResult('check_prod_health', {}, 'call-12'),
       makeToolResult('check_prod_health', {}, 'call-13'),
       makeToolResult('check_prod_health', {}, 'call-14'),
-      makeToolResult(
-        'done',
-        { reason: 'Monitoring window is clean and the incident is stabilized.' },
-        'call-15',
-      ),
     ];
 
     let callIndex = 0;
@@ -122,7 +117,6 @@ describe('CrisisAgentRunner', () => {
       'check_prod_health',
       'check_prod_health',
       'check_prod_health',
-      'done',
     ]);
     expect(run.trace.some((event) => event.kind === 'tool_result')).toBe(true);
     expect(run.trace.at(-1)?.kind).toBe('run_finish');
@@ -144,7 +138,7 @@ describe('CrisisAgentRunner', () => {
     ]);
     expect(run.transcript.length).toBe(run.milestones.length);
     expect(run.summary).toEqual({
-      totalSteps: 15,
+      totalSteps: 14,
       totalMilestones: 14,
       finalIncidentStatus: 'stabilized',
     });
