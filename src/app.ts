@@ -9,13 +9,16 @@ import { registerReadyRoute } from './routes/ready';
 
 export const createApp = () => {
   const app = new Hono();
-  const { scenarioEngine, commanderRunner } = createIncidentServices();
+  const { scenarioEngine, commanderRunner, slackTransport } = createIncidentServices();
 
   registerHealthRoute(app);
   registerReadyRoute(app);
-  registerDebugRoute(app);
+  registerDebugRoute(app, slackTransport);
   registerIncidentRoutes(app, scenarioEngine);
   registerAgentRoutes(app, commanderRunner);
 
-  return app;
+  return {
+    app,
+    slackTransport,
+  };
 };
