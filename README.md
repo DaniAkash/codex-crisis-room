@@ -1,12 +1,12 @@
-# Codex Crisis Room
+# Crisis Commander Agent
 
-**The Incident Commander Agent for software outages.**
+**🚨 Detect incidents. 🧠 Run RCA. 🛠️ Coordinate the fix. ✅ Close only after production is stable.**
 
-Codex Crisis Room is a hackathon project built to showcase an Incident Commander Agent that can detect a production incident, investigate evidence, coordinate humans, propose a fix path, and drive the incident through stabilization.
+The Crisis Commander Agent is built to respond to software incidents like an operational teammate: it detects repeated failures, starts RCA automatically, correlates monitoring and repository evidence, updates the incident report, pages stakeholders, invokes Codex to start the fix path, waits for human merge confirmation, and monitors production until the incident is genuinely stable.
 
-The current build runs that commander against a simulated production environment, but the command loop itself is real. The same architecture is designed to plug into real repositories, real monitoring systems, and real incident workflows.
+`codex-crisis-room` is the hackathon environment built to showcase that agent in action. The current build runs the commander against a simulated production environment, but the command loop itself is real and designed to plug into real repositories, real monitoring systems, and real incident workflows.
 
-## What This Is
+## ✨ What This Is
 
 Codex Crisis Room is an incident simulation environment for demonstrating agentic incident response.
 
@@ -23,9 +23,21 @@ In the live demo, the commander:
 - pauses for human confirmation before merge
 - monitors the rollout and closes the incident only after clean health checks
 
-## The Incident Commander Agent
+```mermaid
+flowchart LR
+    A[🚨 Alert burst in Slack] --> B[🧠 Crisis Commander detects repeated incident]
+    B --> C[📡 Correlate monitoring evidence]
+    C --> D[🗂️ Inspect repo changes and suspect PRs]
+    D --> E[🧵 Update incident report and page stakeholders]
+    E --> F[🛠️ Invoke Codex to start the fix]
+    F --> G[👩‍💻 Human review gate]
+    G --> H[🚀 Rollout and monitor]
+    H --> I[✅ Stabilize and close incident]
+```
 
-The Incident Commander Agent is the core of the project.
+## 🤖 The Crisis Commander Agent
+
+The Crisis Commander Agent is the core of the project.
 
 It is built to handle the workflow a real on-call incident lead would normally coordinate across multiple systems and people:
 
@@ -59,7 +71,24 @@ It is built to handle the workflow a real on-call incident lead would normally c
 
 This hackathon version demonstrates the commander on one seeded billing-failure incident, but the design is intended for real repository and incident workflows.
 
-## Why Crisis Room Exists
+## 💾 Durable Incident State
+
+The commander does not operate as a one-shot chat response. It runs on durable incident state that survives the flow of the demo and can be rendered into Slack updates, reports, and monitoring progression.
+
+```mermaid
+flowchart LR
+    A[Slack trigger] --> B[Crisis Commander run]
+    B --> C[XState incident actor]
+    C --> D[Typed JSON persistence]
+    C --> E[Incident report state]
+    C --> F[Milestones]
+    F --> G[Slack story shaping]
+    G --> H[Slack thread updates]
+    E --> I[Rendered incident report]
+    D --> C
+```
+
+## 🌐 Why Crisis Room Exists
 
 The demo environment is simulated because live incidents are a bad dependency for a hackathon demo.
 
@@ -82,7 +111,7 @@ What is simulated:
 
 That tradeoff keeps the demo deterministic while preserving the real product core. The simulation layer can be replaced with live integrations without changing the overall agent architecture.
 
-## Demo Flow
+## 🎬 Demo Flow
 
 The current demo is a Slack-first incident narrative.
 
@@ -97,7 +126,7 @@ The current demo is a Slack-first incident narrative.
 
 The result is a believable incident-room thread backed by real agent state, not a canned transcript replay.
 
-## What Makes This More Than a Scripted Demo
+## 🧪 What Makes This More Than a Scripted Demo
 
 Codex Crisis Room is not just printing prewritten Slack messages.
 
@@ -113,7 +142,7 @@ The implementation contains:
 
 That means the Slack story is a presentation layer over actual incident progression logic.
 
-## Architecture
+## 🏗️ Architecture
 
 ### 1. Incident Commander Agent
 
@@ -152,6 +181,21 @@ This layer uses:
 - typed transitions for investigation, coordination, merge, monitoring, and closeout
 - typed JSON persistence so incidents survive server restarts
 
+```mermaid
+stateDiagram-v2
+    [*] --> new
+    new --> triage_started
+    triage_started --> investigating
+    investigating --> stakeholders_notified
+    stakeholders_notified --> fix_pr_opened
+    fix_pr_opened --> owner_assigned
+    owner_assigned --> fix_merged
+    fix_merged --> monitoring
+    monitoring --> monitoring
+    monitoring --> stabilized
+    stabilized --> [*]
+```
+
 ### 4. Scenario Engine
 
 The scenario engine powers the simulated production environment.
@@ -178,7 +222,7 @@ The Slack layer handles:
 
 The reporting layer turns structured incident state into a readable incident summary and final rendered report output.
 
-## Tech Stack
+## ⚙️ Tech Stack
 
 - **Bun**: runtime, package manager, and test runner
 - **Hono**: lightweight server and route layer
@@ -190,7 +234,7 @@ The reporting layer turns structured incident state into a readable incident sum
 - **Zod**: typed runtime validation
 - **JSON persistence**: restart-safe incident storage for the demo
 
-## Current Capabilities
+## 📋 Current Capabilities
 
 - Real Slack-triggered incident start
 - Automatic repeated-incident detection from a message burst
@@ -201,7 +245,7 @@ The reporting layer turns structured incident state into a readable incident sum
 - Post-merge monitoring and stabilization flow
 - Rendered transcript/report surfaces for demo playback and debugging
 
-## Running The Project
+## 🚀 Running The Project
 
 ### Prerequisites
 
@@ -231,7 +275,7 @@ The project expects a `.env` file with values for:
 
 See `.env.example` for the full set of variables.
 
-## Repository Structure
+## 🗂️ Repository Structure
 
 ```text
 src/
@@ -243,13 +287,13 @@ src/
   routes/       Health, debug, incident, and agent endpoints
 ```
 
-## Current Scope
+## 🎯 Current Scope
 
 This repository currently focuses on one seeded billing-renewal incident scenario.
 
 That is intentional. The goal of the hackathon build is to prove that the Incident Commander Agent can handle the full lifecycle of one believable incident extremely well.
 
-## Future Direction
+## 🔭 Future Direction
 
 The next step is not “make the demo flashier.” It is to replace simulated surfaces with real ones:
 - real Sentry integration
