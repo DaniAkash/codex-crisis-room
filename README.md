@@ -6,6 +6,10 @@ The Crisis Commander Agent is built to respond to software incidents like an ope
 
 `codex-crisis-room` is the hackathon environment built to showcase that agent in action. The current build runs the commander against a simulated production environment, but the command loop itself is real and designed to plug into real repositories, real monitoring systems, and real incident workflows.
 
+<p align="center">
+  <img src="docs/assets/slack-demo.gif" alt="Slack demo of Crisis Commander Agent handling an incident" />
+</p>
+
 ## ✨ What This Is
 
 Codex Crisis Room is an incident simulation environment for demonstrating agentic incident response.
